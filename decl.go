@@ -93,6 +93,9 @@ type Expr struct {
 	Location SourceLocation
 	Type     ExprType
 	Value    string
+	IsCall   bool
+	// Only filled if IsCall is true
+	Args []*Expr
 }
 
 type ReturnStmt struct {
@@ -114,11 +117,22 @@ func (s *ReturnStmt) GetKind() StmtType {
 	return s.Kind
 }
 
+func (e *Expr) String(_ int) string {
+	if e.IsCall {
+		argsStrs := make([]string, len(e.Args))
+		for i, arg := range e.Args {
+			argsStrs[i] = arg.Value
+		}
+		return "Call " + e.Value + "(" + strings.Join(argsStrs, ", ") + ")"
+	}
+	return e.Value
+}
+
 func (s *ReturnStmt) String(level int) string {
 	if s.Expr == nil {
 		return strings.Repeat("  ", level) + "Return"
 	}
-	return strings.Repeat("  ", level) + "Return " + s.Expr.Value
+	return strings.Repeat("  ", level) + "Return " + s.Expr.String(level)
 }
 
 type Block struct {
@@ -170,7 +184,8 @@ func (f *FunctionDecl) String(level int) string {
 
 type VariableDecl struct {
 	Decl
-	Type Type
+	Type  Type
+	Value *Expr
 }
 
 func (v *VariableDecl) GetId() string {
@@ -186,5 +201,8 @@ func (v *VariableDecl) GetKind() DeclType {
 }
 
 func (v *VariableDecl) String(level int) string {
+	if v.Value != nil {
+		return strings.Repeat("  ", level) + "Variable " + v.Id + " " + v.Type.String() + " = " + v.Value.Value
+	}
 	return strings.Repeat("  ", level) + "Variable " + v.Id + " " + v.Type.String()
 }

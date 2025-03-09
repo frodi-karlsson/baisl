@@ -47,17 +47,49 @@ func (p *Parser) ParseExpr() (*Expr, error) {
 			Type:     ExprType_INT,
 			Value:    p.nextToken.Value,
 		}
+		p.EatNextToken()
 		return &expr, nil
 	}
 	if p.nextToken.TType == TokenType_IDENTIFIER {
+		isCall := false
+		location := p.nextToken.Location
+		value := p.nextToken.Value
+		args := make([]*Expr, 0)
+		if p.EatNextToken().TType == TokenType_LPAREN {
+			err := assertTokenType(p.EatNextToken(), TokenType_RPAREN, TokenType_NUMBER, TokenType_IDENTIFIER)
+			if err != nil {
+				return nil, err
+			}
+
+			lastToken := p.nextToken
+			for p.nextToken.TType != TokenType_RPAREN {
+				if p.nextToken.TType == TokenType_COMMA {
+					assertTokenType(lastToken, TokenType_NUMBER, TokenType_IDENTIFIER)
+					lastToken = p.nextToken
+					p.EatNextToken()
+				} else {
+					expr, err := p.ParseExpr()
+					if err != nil {
+						return nil, fmt.Errorf("Failed to parse expression argument: %v", err)
+					}
+					args = append(args, expr)
+					lastToken = p.nextToken
+				}
+			}
+
+			isCall = true
+		}
+
 		expr := Expr{
-			Location: p.nextToken.Location,
+			IsCall:   isCall,
+			Location: location,
 			Type:     ExprType_DECL_REF,
-			Value:    p.nextToken.Value,
+			Value:    value,
+			Args:     args,
 		}
 		return &expr, nil
 	}
-	return nil, fmt.Errorf("Unexpected token at %d:%d", p.nextToken.Location.Line, p.nextToken.Location.Column)
+	return nil, fmt.Errorf("Unexpected token %s at %d:%d", p.nextToken.TType, p.nextToken.Location.Line, p.nextToken.Location.Column)
 }
 
 func (p *Parser) ParseReturnStmt() (Statement, error) {
@@ -281,18 +313,6 @@ func (p *Parser) Parse() ([]Declaration, error) {
 
 		lastToken = next
 		next = p.EatNextToken()
-	}
-
-	hasMain := false
-	for _, decl := range declarations {
-		if decl.GetId() == "main" && decl.GetKind() == DeclType_FUNCTION {
-			hasMain = true
-			break
-		}
-	}
-
-	if !hasMain {
-		return nil, fmt.Errorf("No main function found in %s", p.SourceFile.path)
 	}
 
 	return declarations, nil
