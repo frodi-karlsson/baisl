@@ -18,22 +18,26 @@ func (p *Parser) EatNextToken() *Token {
 	return p.nextToken
 }
 
-func assertTokenType(token *Token, ttypes ...TokenType) {
+func assertTokenType(token *Token, ttypes ...TokenType) error {
 	match := slices.Contains(ttypes, token.TType)
 
 	if !match {
 		if len(ttypes) == 1 {
-			panic(fmt.Sprintf("Expected token type %s, got %s at %d:%d in %s", ttypes[0].String(), token.TType.String(), token.Location.Line, token.Location.Column, token.Location.Path))
+			return fmt.Errorf("Expected token type %s, got %s at %d:%d in %s", ttypes[0].String(), token.TType.String(), token.Location.Line, token.Location.Column, token.Location.Path)
 		} else {
-			panic(fmt.Sprintf("Expected token type in %v, got %s at %d:%d in %s", ttypes, token.TType.String(), token.Location.Line, token.Location.Column, token.Location.Path))
+			return fmt.Errorf("Expected token type in %v, got %s at %d:%d in %s", ttypes, token.TType.String(), token.Location.Line, token.Location.Column, token.Location.Path)
 		}
 	}
+
+	return nil
 }
 
-func assertNotTokenType(token *Token, ttype TokenType) {
+func assertNotTokenType(token *Token, ttype TokenType) error {
 	if token.TType == ttype {
-		panic(fmt.Sprintf("Expected token type different from %s, got %s at %d:%d", ttype.String(), token.TType.String(), token.Location.Line, token.Location.Column))
+		return fmt.Errorf("Expected token type different from %s, got %s at %d:%d", ttype.String(), token.TType.String(), token.Location.Line, token.Location.Column)
 	}
+
+	return nil
 }
 
 func (p *Parser) ParseExpr() (*Expr, error) {
@@ -41,7 +45,7 @@ func (p *Parser) ParseExpr() (*Expr, error) {
 		expr := Expr{
 			Location: p.nextToken.Location,
 			Type:     ExprType_INT,
-			value:    p.nextToken.Value,
+			Value:    p.nextToken.Value,
 		}
 		return &expr, nil
 	}
@@ -49,7 +53,7 @@ func (p *Parser) ParseExpr() (*Expr, error) {
 		expr := Expr{
 			Location: p.nextToken.Location,
 			Type:     ExprType_DECL_REF,
-			value:    p.nextToken.Value,
+			Value:    p.nextToken.Value,
 		}
 		return &expr, nil
 	}
@@ -57,10 +61,16 @@ func (p *Parser) ParseExpr() (*Expr, error) {
 }
 
 func (p *Parser) ParseReturnStmt() (Statement, error) {
-	assertTokenType(p.nextToken, TokenType_KEYW_RETURN)
+	err := assertTokenType(p.nextToken, TokenType_KEYW_RETURN)
+	if err != nil {
+		return nil, err
+	}
+	err = assertTokenType(p.EatNextToken(), TokenType_NUMBER, TokenType_IDENTIFIER, TokenType_RBRACE)
+	if err != nil {
+		return nil, err
+	}
+
 	var expr *Expr
-	var err error
-	assertTokenType(p.EatNextToken(), TokenType_NUMBER, TokenType_IDENTIFIER, TokenType_RBRACE)
 	if p.nextToken.TType == TokenType_RBRACE {
 		returnStmt := ReturnStmt{
 			Stmt: Stmt{
@@ -91,7 +101,10 @@ func (p *Parser) ParseReturnStmt() (Statement, error) {
 			break
 		}
 
-		assertNotTokenType(p.nextToken, TokenType_EOF)
+		err = assertNotTokenType(p.nextToken, TokenType_EOF)
+		if err != nil {
+			return nil, err
+		}
 
 		p.EatNextToken()
 	}
@@ -101,19 +114,30 @@ func (p *Parser) ParseReturnStmt() (Statement, error) {
 
 func (p *Parser) ParseBlock() (*Block, error) {
 	p.EatNextToken()
-	assertTokenType(p.nextToken, TokenType_LBRACE)
+	err := assertTokenType(p.nextToken, TokenType_LBRACE)
+	if err != nil {
+		return nil, err
+	}
 
-	stmts := make([]*Statement, 0)
+	stmts := make([]Statement, 0)
 	for p.EatNextToken().TType != TokenType_RBRACE {
-		assertTokenType(p.nextToken, TokenType_KEYW_RETURN, TokenType_RBRACE)
+		err = assertTokenType(p.nextToken, TokenType_KEYW_RETURN, TokenType_RBRACE)
+		if err != nil {
+			return nil, err
+		}
+
 		if p.nextToken.TType == TokenType_KEYW_RETURN {
 			returnStmt, err := p.ParseReturnStmt()
 			if err != nil {
 				return nil, err
 			}
 
-			stmts = append(stmts, &returnStmt)
-			assertTokenType(p.nextToken, TokenType_RBRACE)
+			stmts = append(stmts, returnStmt)
+			err = assertTokenType(p.nextToken, TokenType_RBRACE)
+			if err != nil {
+				return nil, err
+			}
+
 			break
 		}
 	}
@@ -130,18 +154,32 @@ func (p *Parser) ParseParameterList() ([]*VariableDecl, error) {
 	variables := make([]*VariableDecl, 0)
 	lastToken := p.nextToken
 	for p.EatNextToken().TType != TokenType_RPAREN {
-		assertNotTokenType(p.nextToken, TokenType_EOF)
+		err := assertNotTokenType(p.nextToken, TokenType_EOF)
+		if err != nil {
+			return nil, err
+		}
 
 		if lastToken.TType == TokenType_LPAREN || lastToken.TType == TokenType_COMMA {
-			assertTokenType(p.nextToken, TokenType_IDENTIFIER)
+			err = assertTokenType(p.nextToken, TokenType_IDENTIFIER)
+			if err != nil {
+				return nil, err
+			}
+
 			id := p.nextToken.Value
 			initialLocation := p.nextToken.Location
-			assertTokenType(p.EatNextToken(), TokenType_COLON)
-			assertTokenType(p.EatNextToken(), TokenType_KEYW_INT)
+			err = assertTokenType(p.EatNextToken(), TokenType_COLON)
+			if err != nil {
+				return nil, err
+			}
+
+			err = assertTokenType(p.EatNextToken(), TokenType_KEYW_INT)
+			if err != nil {
+				return nil, err
+			}
 
 			decl := VariableDecl{
 				Decl: Decl{
-					id:       id,
+					Id:       id,
 					Location: initialLocation,
 				},
 				Type: Type_INT,
@@ -149,7 +187,10 @@ func (p *Parser) ParseParameterList() ([]*VariableDecl, error) {
 
 			variables = append(variables, &decl)
 		} else if lastToken.TType == TokenType_IDENTIFIER {
-			assertTokenType(p.nextToken, TokenType_COMMA, TokenType_RPAREN)
+			err = assertTokenType(p.nextToken, TokenType_COMMA, TokenType_RPAREN)
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			panic(fmt.Sprintf("Unexpected token at %d:%d", p.nextToken.Location.Line, p.nextToken.Location.Column))
 		}
@@ -160,13 +201,25 @@ func (p *Parser) ParseParameterList() ([]*VariableDecl, error) {
 }
 
 func (p *Parser) ParseFunction() (*FunctionDecl, error) {
-	assertTokenType(p.nextToken, TokenType_KEYW_FN)
-	assertTokenType(p.EatNextToken(), TokenType_IDENTIFIER)
+	err := assertTokenType(p.nextToken, TokenType_KEYW_FN)
+	if err != nil {
+		return nil, err
+	}
+	err = assertTokenType(p.EatNextToken(), TokenType_IDENTIFIER)
+	if err != nil {
+		return nil, err
+	}
 	fnName := p.nextToken.Value
 
-	assertTokenType(p.EatNextToken(), TokenType_LPAREN, TokenType_COLON)
+	err = assertTokenType(p.EatNextToken(), TokenType_LPAREN, TokenType_COLON)
+	if err != nil {
+		return nil, err
+	}
 	if fnName == "main" {
-		assertNotTokenType(p.nextToken, TokenType_LPAREN)
+		err = assertNotTokenType(p.nextToken, TokenType_LPAREN)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var parameters []*VariableDecl
@@ -177,10 +230,16 @@ func (p *Parser) ParseFunction() (*FunctionDecl, error) {
 			return nil, fmt.Errorf("Failed to parse parameter list: %v", err)
 		}
 
-		assertTokenType(p.EatNextToken(), TokenType_COLON)
+		err = assertTokenType(p.EatNextToken(), TokenType_COLON)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	assertTokenType(p.EatNextToken(), TokenType_KEYW_INT, TokenType_KEYW_VOID)
+	err = assertTokenType(p.EatNextToken(), TokenType_KEYW_INT, TokenType_KEYW_VOID)
+	if err != nil {
+		return nil, err
+	}
 	returnType := Type_INT
 	if p.nextToken.TType == TokenType_KEYW_VOID {
 		returnType = Type_VOID
@@ -194,7 +253,7 @@ func (p *Parser) ParseFunction() (*FunctionDecl, error) {
 
 	return &FunctionDecl{
 		Decl: Decl{
-			id:       fnName,
+			Id:       fnName,
 			Location: p.nextToken.Location,
 		},
 		ReturnType: returnType,

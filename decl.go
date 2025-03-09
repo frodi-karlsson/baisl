@@ -6,11 +6,11 @@ import (
 
 type Decl struct {
 	Location SourceLocation
-	id       string
+	Id       string
 }
 
 func (d *Decl) GetId() string {
-	return d.id
+	return d.Id
 }
 
 func (d *Decl) GetLocation() *SourceLocation {
@@ -92,7 +92,7 @@ const (
 type Expr struct {
 	Location SourceLocation
 	Type     ExprType
-	value    string
+	Value    string
 }
 
 type ReturnStmt struct {
@@ -118,18 +118,18 @@ func (s *ReturnStmt) String(level int) string {
 	if s.Expr == nil {
 		return strings.Repeat("  ", level) + "Return"
 	}
-	return strings.Repeat("  ", level) + "Return " + s.Expr.value
+	return strings.Repeat("  ", level) + "Return " + s.Expr.Value
 }
 
 type Block struct {
 	Location SourceLocation
-	Stmts    []*Statement
+	Stmts    []Statement
 }
 
 func (b *Block) String(level int) string {
 	stmtStr := ""
 	for _, stmt := range b.Stmts {
-		resolvedStmt := *stmt
+		resolvedStmt := stmt
 		stmtStr += resolvedStmt.String(level+1) + "\n"
 	}
 	return strings.Repeat("  ", level) + "Block:\n" + stmtStr
@@ -147,7 +147,7 @@ type FunctionDecl struct {
 }
 
 func (f *FunctionDecl) GetId() string {
-	return f.id
+	return f.Id
 }
 
 func (f *FunctionDecl) GetLocation() *SourceLocation {
@@ -165,7 +165,7 @@ func (f *FunctionDecl) String(level int) string {
 	for i, param := range f.Params {
 		paramsStrs[i] = param.GetId() + ": " + param.Type.String()
 	}
-	return strings.Repeat("  ", level) + "Function " + f.id + "(" + strings.Join(paramsStrs, ", ") + "): " + f.ReturnType.String() + ":\n" + bodyStr
+	return strings.Repeat("  ", level) + "Function " + f.Id + "(" + strings.Join(paramsStrs, ", ") + "): " + f.ReturnType.String() + ":\n" + bodyStr
 }
 
 type VariableDecl struct {
@@ -174,7 +174,7 @@ type VariableDecl struct {
 }
 
 func (v *VariableDecl) GetId() string {
-	return v.id
+	return v.Id
 }
 
 func (v *VariableDecl) GetLocation() *SourceLocation {
@@ -186,5 +186,5 @@ func (v *VariableDecl) GetKind() DeclType {
 }
 
 func (v *VariableDecl) String(level int) string {
-	return strings.Repeat("  ", level) + "Variable " + v.id + " " + v.Type.String()
+	return strings.Repeat("  ", level) + "Variable " + v.Id + " " + v.Type.String()
 }
