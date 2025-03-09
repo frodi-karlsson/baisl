@@ -1,0 +1,7 @@
+fn main: void {
+  return
+}
+
+fn return2: int {
+  return 2
+}

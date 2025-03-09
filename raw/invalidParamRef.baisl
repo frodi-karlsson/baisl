@@ -1,0 +1,7 @@
+fn main: void {
+  return
+}
+
+fn returnParam(a: int): int {
+  return b
+}
