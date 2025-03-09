@@ -22,9 +22,7 @@ var parserTests = []parserTest{
 	{"raw/retParam.baisl", "Function main(): void:\n  Block:\n    Return\n\nFunction returnParam(a: int): int:\n  Block:\n    Return a\n\n"},
 }
 
-var failParserTests = []failParserTest{
-	{"raw/invalidParamRef.baisl", "Undeclared variable"},
-}
+var failParserTests = []failParserTest{}
 
 func TestParse(t *testing.T) {
 	for _, test := range parserTests {

@@ -7,9 +7,6 @@ import (
 
 type symbolTable map[string](bool)
 
-var globalSymbolTable symbolTable
-var fnSymbolTableMap map[string]*symbolTable
-
 type Parser struct {
 	nextToken  *Token
 	SourceFile *SourceFile
@@ -39,7 +36,7 @@ func assertNotTokenType(token *Token, ttype TokenType) {
 	}
 }
 
-func (p *Parser) ParseExpr(fnName string) (*Expr, error) {
+func (p *Parser) ParseExpr() (*Expr, error) {
 	if p.nextToken.TType == TokenType_NUMBER {
 		expr := Expr{
 			Location: p.nextToken.Location,
@@ -49,13 +46,6 @@ func (p *Parser) ParseExpr(fnName string) (*Expr, error) {
 		return &expr, nil
 	}
 	if p.nextToken.TType == TokenType_IDENTIFIER {
-		if _, ok := globalSymbolTable[p.nextToken.Value]; !ok {
-			fnMap, ok := fnSymbolTableMap[fnName]
-			if !ok || !(*fnMap)[p.nextToken.Value] {
-				return nil, fmt.Errorf("Undeclared variable %s at %d:%d", p.nextToken.Value, p.nextToken.Location.Line, p.nextToken.Location.Column)
-			}
-		}
-
 		expr := Expr{
 			Location: p.nextToken.Location,
 			Type:     ExprType_DECL_REF,
@@ -66,7 +56,7 @@ func (p *Parser) ParseExpr(fnName string) (*Expr, error) {
 	return nil, fmt.Errorf("Unexpected token at %d:%d", p.nextToken.Location.Line, p.nextToken.Location.Column)
 }
 
-func (p *Parser) ParseReturnStmt(fnName string) (Statement, error) {
+func (p *Parser) ParseReturnStmt() (Statement, error) {
 	assertTokenType(p.nextToken, TokenType_KEYW_RETURN)
 	var expr *Expr
 	var err error
@@ -83,7 +73,7 @@ func (p *Parser) ParseReturnStmt(fnName string) (Statement, error) {
 		return &returnStmt, nil
 	}
 
-	expr, err = p.ParseExpr(fnName)
+	expr, err = p.ParseExpr()
 
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse expression: %v", err)
@@ -109,7 +99,7 @@ func (p *Parser) ParseReturnStmt(fnName string) (Statement, error) {
 	return &returnStmt, nil
 }
 
-func (p *Parser) ParseBlock(fnName string) (*Block, error) {
+func (p *Parser) ParseBlock() (*Block, error) {
 	p.EatNextToken()
 	assertTokenType(p.nextToken, TokenType_LBRACE)
 
@@ -117,7 +107,7 @@ func (p *Parser) ParseBlock(fnName string) (*Block, error) {
 	for p.EatNextToken().TType != TokenType_RBRACE {
 		assertTokenType(p.nextToken, TokenType_KEYW_RETURN, TokenType_RBRACE)
 		if p.nextToken.TType == TokenType_KEYW_RETURN {
-			returnStmt, err := p.ParseReturnStmt(fnName)
+			returnStmt, err := p.ParseReturnStmt()
 			if err != nil {
 				return nil, err
 			}
@@ -134,7 +124,7 @@ func (p *Parser) ParseBlock(fnName string) (*Block, error) {
 	}, nil
 }
 
-func (p *Parser) ParseParameterList(fnName string) ([]*VariableDecl, error) {
+func (p *Parser) ParseParameterList() ([]*VariableDecl, error) {
 	assertTokenType(p.nextToken, TokenType_LPAREN)
 
 	variables := make([]*VariableDecl, 0)
@@ -158,7 +148,6 @@ func (p *Parser) ParseParameterList(fnName string) ([]*VariableDecl, error) {
 			}
 
 			variables = append(variables, &decl)
-			(*fnSymbolTableMap[fnName])[id] = true
 		} else if lastToken.TType == TokenType_IDENTIFIER {
 			assertTokenType(p.nextToken, TokenType_COMMA, TokenType_RPAREN)
 		} else {
@@ -174,8 +163,6 @@ func (p *Parser) ParseFunction() (*FunctionDecl, error) {
 	assertTokenType(p.nextToken, TokenType_KEYW_FN)
 	assertTokenType(p.EatNextToken(), TokenType_IDENTIFIER)
 	fnName := p.nextToken.Value
-	symbolTable := make(symbolTable)
-	fnSymbolTableMap[fnName] = &symbolTable
 
 	assertTokenType(p.EatNextToken(), TokenType_LPAREN, TokenType_COLON)
 	if fnName == "main" {
@@ -185,7 +172,7 @@ func (p *Parser) ParseFunction() (*FunctionDecl, error) {
 	var parameters []*VariableDecl
 	if p.nextToken.TType == TokenType_LPAREN {
 		var err error
-		parameters, err = p.ParseParameterList(fnName)
+		parameters, err = p.ParseParameterList()
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse parameter list: %v", err)
 		}
@@ -199,7 +186,7 @@ func (p *Parser) ParseFunction() (*FunctionDecl, error) {
 		returnType = Type_VOID
 	}
 
-	block, err := p.ParseBlock(fnName)
+	block, err := p.ParseBlock()
 
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse block: %v", err)
@@ -217,9 +204,6 @@ func (p *Parser) ParseFunction() (*FunctionDecl, error) {
 }
 
 func (p *Parser) Parse() ([]Declaration, error) {
-	globalSymbolTable = make(symbolTable)
-	fnSymbolTableMap = make(map[string]*symbolTable)
-
 	declarations := make([]Declaration, 0)
 
 	var lastToken *Token
