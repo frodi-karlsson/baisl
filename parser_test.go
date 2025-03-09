@@ -20,7 +20,7 @@ type failParserTest struct {
 var parserTests = []parserTest{
 	{"raw/ret2.baisl", "Function main(): void:\n  Block:\n    Return\n\nFunction return2(): int:\n  Block:\n    Return 2\n\n"}, // annoying extra newline i haven't dealt with
 	{"raw/retParam.baisl", "Function main(): void:\n  Block:\n    Return\n\nFunction returnParam(a: int): int:\n  Block:\n    Return a\n\n"},
-	{"raw/fnCall.baisl", "Function returnParam(a: int): int:\n  Block:\n    Return a\n\nFunction main(): void:\n  Block:\n    Return Call returnParam(5)\n\n"},
+	{"raw/fnCall.baisl", "Function returnParam(a: int): int:\n  Block:\n    Return a\n\nFunction main(): int:\n  Block:\n    Return Call returnParam(5)\n\n"},
 }
 
 var failParserTests = []failParserTest{}

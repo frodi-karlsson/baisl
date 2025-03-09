@@ -2,6 +2,6 @@ fn returnParam(a: int): int {
   return a
 }
 
-fn main: void {
+fn main: int {
   return returnParam(5)
 }
